@@ -22,7 +22,23 @@
   );
 
   let showPreview = false;
+
+  // NEW: search query
+  let searchQuery = '';
+
+  // NEW: helper to check if a document matches the search
+  function matchesSearch(doc: any, query: string) {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+
+    return (
+      (doc.title ?? '').toLowerCase().includes(q) ||
+      (doc.subtitle ?? '').toLowerCase().includes(q) ||
+      (doc.content ?? '').toLowerCase().includes(q)
+    );
+  }
 </script>
+
 
 <div class="h-screen flex flex-col bg-[#f5eee4] text-zinc-900 dark:bg-black dark:text-zinc-100 transition-colors">
   <!-- HEADER -->
@@ -94,13 +110,13 @@
       `}
     >
       <!-- Search above documents -->
-      <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+    <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <input
-          class="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
-          placeholder="Search files..."
-          disabled
+            class="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+            placeholder="Search documents..."
+            bind:value={searchQuery}
         />
-      </div>
+    </div>
 
       <!-- Documents list + New button -->
       <div class="flex-1 px-4 py-3 text-sm overflow-y-auto">
@@ -116,22 +132,23 @@
           </button>
         </div>
 
-        <div class="space-y-1">
-          {#each $documents as doc}
-            <button
-              class={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm
-                ${
-                  $currentDocument && doc.id === $currentDocument.id
-                    ? 'bg-zinc-200 dark:bg-zinc-800'
-                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
-                }`}
-              on:click={() => selectDocument(doc.id)}
-            >
-              <span class="h-2 w-2 rounded-full bg-zinc-500"></span>
-              <span class="truncate">{doc.title || 'Untitled note'}</span>
-            </button>
-          {/each}
-        </div>
+    <div class="space-y-1">
+  {#each $documents.filter((doc) => matchesSearch(doc, searchQuery)) as doc}
+    <button
+      class={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm
+        ${
+          $currentDocument && doc.id === $currentDocument.id
+            ? 'bg-zinc-200 dark:bg-zinc-800'
+            : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
+        }`}
+      on:click={() => selectDocument(doc.id)}
+    >
+      <span class="h-2 w-2 rounded-full bg-zinc-500"></span>
+      <span class="truncate">{doc.title || 'Untitled note'}</span>
+    </button>
+  {/each}
+</div>
+
       </div>
 
       <!-- Footer -->
