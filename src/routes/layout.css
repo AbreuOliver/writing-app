@@ -16,6 +16,10 @@
 
 /* Global default font */
 body {
+    font-family: 'VerySerif-Regular';
+}
+
+article {
   font-family: "Figtree", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
 }
