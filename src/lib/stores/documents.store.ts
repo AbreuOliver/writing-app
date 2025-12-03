@@ -18,6 +18,27 @@ type PersistedState = {
   currentDocumentId: string | null;
 };
 
+// Helper functions for word counting (moved to top)
+function stripMarkdown(markdownText: string): string {
+  let cleanText = markdownText.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+  cleanText = cleanText.replace(/<[^>]+>/g, '');
+  cleanText = cleanText.replace(/^#{1,6}\s+/gm, '');
+  cleanText = cleanText.replace(/^(\s*[\*+\-]\s+|[0-9]+\.\s+)/gm, '');
+  cleanText = cleanText.replace(/^[>]{1,}\s+/gm, '');
+  cleanText = cleanText.replace(/(\*\*|__)(.*?)\1/g, '$2');
+  cleanText = cleanText.replace(/(\*|_)(.*?)\1/g, '$2');
+  cleanText = cleanText.replace(/```[\s\S]*?```/g, '');
+  cleanText = cleanText.replace(/`([^`]+)`/g, '$1');
+  cleanText = cleanText.replace(/[\\~]/g, '');
+  return cleanText;
+}
+
+function countWords(text: string): number {
+  const trimmedText = text.trim();
+  if (!trimmedText) return 0;
+  return trimmedText.split(/\s+/).length;
+}
+
 function createBlankDocument(): Document {
   const now = new Date().toISOString();
   return {
@@ -82,12 +103,12 @@ export const currentDocument = derived(
   ([$docs, $id]) => $docs.find((doc) => doc.id === $id) ?? null
 );
 
-// derived: word count and goal info
+// derived: word count (strips markdown)
 export const wordCount = derived(currentDocument, ($doc) => {
   if (!$doc) return 0;
-  const text = $doc.content.trim();
-  if (!text) return 0;
-  return text.split(/\s+/).length;
+  const content = $doc.content;
+  const contentWithoutMarkdown = stripMarkdown(content);
+  return countWords(contentWithoutMarkdown);
 });
 
 export const goalInfo = derived(

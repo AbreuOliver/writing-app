@@ -1,11 +1,11 @@
 <script lang="ts">
   import MarkdownIt from 'markdown-it';
   import { derived } from 'svelte/store';
+  import CodeMirrorEditor from '$lib/components/CodeMirrorEditor.svelte';
 
   import {
     documents,
     currentDocument,
-    wordCount,
     goalInfo,
     createDocument,
     selectDocument,
@@ -14,6 +14,7 @@
     updateCurrentContent,
     updateCurrentWordGoal
   } from '$lib/stores/documents.store';
+  import Footer from '$lib/components/Footer.svelte';
 
   const md = new MarkdownIt({ breaks: true });
 
@@ -22,11 +23,14 @@
   );
 
   let showPreview = false;
-
-  // NEW: search query
   let searchQuery = '';
+  let isDarkMode = false;
 
-  // NEW: helper to check if a document matches the search
+  // Check for dark mode
+  $: if (typeof window !== 'undefined') {
+    isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
   function matchesSearch(doc: any, query: string) {
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -37,15 +41,53 @@
       (doc.content ?? '').toLowerCase().includes(q)
     );
   }
+
+  // --- ACCURATE WORD COUNT LOGIC (RETAINED) ---
+  
+  /**
+   * Removes common markdown syntax from a string for accurate word counting.
+   */
+  function stripMarkdown(markdownText: string): string {
+    // 1. Remove link and image syntax [text](url)
+    let cleanText = markdownText.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+    // 2. Remove HTML tags (for inline HTML)
+    cleanText = cleanText.replace(/<[^>]+>/g, '');
+    // 3. Remove headers - FIXED to handle # at start with space
+    cleanText = cleanText.replace(/^#{1,6}\s+/gm, '');
+    // 4. Remove list markers, etc.
+    cleanText = cleanText.replace(/^(\s*[\*+\-]\s+|[0-9]+\.\s+)/gm, '');
+    cleanText = cleanText.replace(/^[>]{1,}\s+/gm, '');
+    // 5. Remove emphasis/strong text (**, __, *, _) 
+    cleanText = cleanText.replace(/(\*\*|__)(.*?)\1/g, '$2');
+    cleanText = cleanText.replace(/(\*|_)(.*?)\1/g, '$2');
+    // 6. Remove code blocks and inline code
+    cleanText = cleanText.replace(/```[\s\S]*?```/g, '');
+    cleanText = cleanText.replace(/`([^`]+)`/g, '$1');
+    // 7. Remove special chars
+    cleanText = cleanText.replace(/[\\~]/g, ''); 
+    return cleanText;
+  }
+
+  function countWords(text: string): number {
+    const trimmedText = text.trim();
+    if (!trimmedText) return 0;
+    return trimmedText.split(/\s+/).length;
+  }
+
+  // Define localWordCount (or update $lib/stores/documents.store.ts)
+  const localWordCount = derived(currentDocument, ($doc) => {
+    const content = $doc?.content ?? '';
+    const contentWithoutMarkdown = stripMarkdown(content); 
+    return countWords(contentWithoutMarkdown);
+  });
+  // --- END ACCURATE WORD COUNT LOGIC ---
 </script>
 
 
 <div class="h-screen flex flex-col bg-[#f5eee4] text-zinc-900 dark:bg-black dark:text-zinc-100 transition-colors">
-  <!-- HEADER -->
   <header
     class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-8 py-3"
   >
-    <!-- Title + subtitle -->
     <div class="flex flex-col">
       <input
         class="bg-transparent text-xl font-semibold tracking-wide focus:outline-none"
@@ -62,7 +104,6 @@
       />
     </div>
 
-    <!-- Progress + goal + preview toggle -->
     <div class="flex items-center gap-6 text-sm text-zinc-500">
       <div class="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
         <span>Goal</span>
@@ -101,16 +142,13 @@
     </div>
   </header>
 
-  <!-- BODY: sidebar + main -->
   <div class="flex flex-1 overflow-hidden">
-    <!-- SIDEBAR -->
     <aside
       class={`border-r border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden transition-all duration-300 ease-in-out
         ${showPreview ? 'w-0 opacity-0 pointer-events-none' : 'w-64 opacity-100'}
       `}
     >
-      <!-- Search above documents -->
-    <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+      <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
         <input
             class="w-full rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
             placeholder="Search documents..."
@@ -118,7 +156,6 @@
         />
     </div>
 
-      <!-- Documents list + New button -->
       <div class="flex-1 px-4 py-3 text-sm overflow-y-auto">
         <div class="flex items-center justify-between mb-2">
           <div class="text-xs uppercase tracking-wide text-zinc-500">
@@ -133,53 +170,42 @@
         </div>
 
     <div class="space-y-1">
-  {#each $documents.filter((doc) => matchesSearch(doc, searchQuery)) as doc}
-    <button
-      class={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm
-        ${
-          $currentDocument && doc.id === $currentDocument.id
-            ? 'bg-zinc-200 dark:bg-zinc-800'
-            : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
-        }`}
-      on:click={() => selectDocument(doc.id)}
-    >
-      <span class="h-2 w-2 rounded-full bg-zinc-500"></span>
-      <span class="truncate">{doc.title || 'Untitled note'}</span>
-    </button>
-  {/each}
-</div>
+        {#each $documents.filter((doc) => matchesSearch(doc, searchQuery)) as doc}
+            <button
+            class={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm
+                ${
+                $currentDocument && doc.id === $currentDocument.id
+                    ? 'bg-zinc-200 dark:bg-zinc-800'
+                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
+                }`}
+            on:click={() => selectDocument(doc.id)}
+            >
+            <span class="h-2 w-2 rounded-full bg-zinc-500"></span>
+            <span class="truncate">{doc.title || 'Untitled note'}</span>
+            </button>
+        {/each}
+    </div>
 
       </div>
 
-      <!-- Footer -->
-      <div
-        class="border-t border-zinc-200 dark:border-zinc-800 px-4 py-2 text-[11px] text-zinc-500 flex items-center justify-between"
-      >
-        <span>Made with ♥ by Oliver Abreu</span>
-      </div>
+      <Footer />
     </aside>
 
-    <!-- MAIN EDITOR / PREVIEW -->
     <main class="flex-1 flex flex-col overflow-hidden">
       {#if $currentDocument}
         <div class="flex flex-1 overflow-hidden">
-          <!-- Editor -->
           <section
             class={`border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300 ease-in-out ${
               showPreview ? 'basis-1/2' : 'basis-full'
             }`}
           >
-            <textarea
-              class="h-full min-w-full resize-none bg-transparent px-10 py-8 text-base leading-relaxed focus:outline-none"
-              spellcheck="false"
-              placeholder="Start writing..."
+            <CodeMirrorEditor
               value={$currentDocument.content}
-              on:input={(e) =>
-                updateCurrentContent((e.target as HTMLTextAreaElement).value)}
-            ></textarea>
+              onUpdate={updateCurrentContent}
+              isDark={isDarkMode}
+            />
           </section>
 
-          <!-- Preview -->
           <section
             class={`overflow-y-auto px-10 py-8 bg-[#f8f2e8] dark:bg-zinc-950 transition-all duration-300 ease-in-out ${
               showPreview
