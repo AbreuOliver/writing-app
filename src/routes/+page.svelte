@@ -88,7 +88,7 @@
   <header
     class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-8 py-3"
   >
-    <div class="flex flex-col">
+    <div class="flex flex-col w-full max-w-1/2">
       <input
         class="bg-transparent text-xl font-semibold tracking-wide focus:outline-none"
         value={$currentDocument?.title ?? ''}

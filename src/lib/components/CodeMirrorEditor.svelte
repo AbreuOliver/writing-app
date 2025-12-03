@@ -111,7 +111,7 @@
       caretColor: isDark ? '#fafafa' : '#18181b',
       padding: '2rem 2.5rem',
       fontFamily: 'inherit',
-      lineHeight: '1.625',
+      lineHeight: '1.5',
       color: isDark ? '#fafafa' : '#18181b',
     },
     '.cm-scroller': {
